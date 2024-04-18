@@ -1,0 +1,99 @@
+Add-Type -AssemblyName System.Windows.Forms
+
+# Crear una nueva ventana de formulario
+$Form = New-Object System.Windows.Forms.Form
+$Form.Text = "Eliminador de Archivos"
+$Form.BackColor = "#2C3E50"  # Fondo azul oscuro
+$Form.ForeColor = "White"  # Texto blanco
+
+# Crear controles para la interfaz
+$LabelDirectorio = New-Object System.Windows.Forms.Label
+$LabelDirectorio.Text = "Directorio:"
+$LabelDirectorio.AutoSize = $true
+$LabelDirectorio.Location = New-Object System.Drawing.Point(10, 10)
+$LabelDirectorio.BackColor = "#2C3E50"  # Fondo azul oscuro
+$LabelDirectorio.ForeColor = "White"  # Texto blanco
+
+$TextBoxDirectorio = New-Object System.Windows.Forms.TextBox
+$TextBoxDirectorio.Location = New-Object System.Drawing.Point(90, 10)
+$TextBoxDirectorio.Size = New-Object System.Drawing.Size(200, 20)
+
+$ButtonCargar = New-Object System.Windows.Forms.Button
+$ButtonCargar.Text = "Cargar Archivos"
+$ButtonCargar.Location = New-Object System.Drawing.Point(300, 10)
+$ButtonCargar.BackColor = "#3498DB"  # Azul vibrante
+$ButtonCargar.ForeColor = "White"  # Texto blanco
+$ButtonCargar.Add_Click({
+    $rutaDirectorio = $TextBoxDirectorio.Text
+    if (-not (Test-Path -Path $rutaDirectorio -PathType Container)) {
+        [System.Windows.Forms.MessageBox]::Show("Por favor, ingresa una ruta de directorio válida.", "Alerta", "OK", "Warning")
+    } else {
+        $fechaActual = Get-Date
+        $archivos = Get-ChildItem -Path $rutaDirectorio -Recurse | Where-Object { -not $_.PSIsContainer }
+
+        # Limpiar el ListBox antes de cargar los archivos
+        $ListBoxArchivos.Items.Clear()
+
+        foreach ($archivo in $archivos) {
+            $diasDesdeModificacion = ($fechaActual - $archivo.LastWriteTime).Days
+            if ($diasDesdeModificacion -gt 100) {  # Cambiado a 100 días
+                # Agregar el archivo al ListBox
+                $ListBoxArchivos.Items.Add($archivo.FullName)
+            }
+        }
+
+        # Mostrar mensaje explicativo
+        [System.Windows.Forms.MessageBox]::Show("Se mostrarán únicamente los archivos con más de 100 días sin uso o modificación.", "Información", "OK", "Information")
+    }
+})
+
+$ListBoxArchivos = New-Object System.Windows.Forms.ListBox
+$ListBoxArchivos.Location = New-Object System.Drawing.Point(10, 40)
+$ListBoxArchivos.Size = New-Object System.Drawing.Size(380, 200)
+$ListBoxArchivos.SelectionMode = "MultiSimple"
+$ListBoxArchivos.BackColor = "#34495E"  # Azul oscuro
+$ListBoxArchivos.ForeColor = "White"  # Texto blanco
+
+$ButtonEliminar = New-Object System.Windows.Forms.Button
+$ButtonEliminar.Text = "Eliminar Seleccionados"
+$ButtonEliminar.Location = New-Object System.Drawing.Point(10, 250)
+$ButtonEliminar.BackColor = "#E74C3C"  # Rojo vibrante
+$ButtonEliminar.ForeColor = "White"  # Texto blanco
+$ButtonEliminar.Add_Click({
+    if ($TextBoxDirectorio.Text -eq "") {
+        [System.Windows.Forms.MessageBox]::Show("Por favor, ingresa una ruta de directorio antes de intentar eliminar archivos.", "Alerta", "OK", "Warning")
+    } else {
+        # Obtener los archivos seleccionados del ListBox
+        $archivosSeleccionados = $ListBoxArchivos.SelectedItems
+
+        foreach ($archivoSeleccionado in $archivosSeleccionados) {
+            $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Deseas eliminar permanentemente el archivo $archivoSeleccionado?", "Confirmar Eliminación", "YesNo", "Warning")
+            if ($confirmacion -eq "Yes") {
+                Remove-Item $archivoSeleccionado -Force
+                [System.Windows.Forms.MessageBox]::Show("Archivo eliminado: $archivoSeleccionado", "Eliminado", "OK", "Information")
+                # Eliminar el archivo de la lista visual
+                $ListBoxArchivos.Items.Remove($archivoSeleccionado)
+            } else {
+                [System.Windows.Forms.MessageBox]::Show("No se ha eliminado el archivo: $archivoSeleccionado", "No Eliminado", "OK", "Information")
+            }
+        }
+    }
+})
+
+# Crear un label para mostrar instrucciones
+$LabelInstrucciones = New-Object System.Windows.Forms.Label
+$LabelInstrucciones.Text = "Para eliminar,(selecciona, da click o resalta) los archivos en el recuadro, y da click en 'Eliminar Seleccionados' (Botón rojo)."
+$LabelInstrucciones.AutoSize = $true
+$LabelInstrucciones.Location = New-Object System.Drawing.Point(10, 280)
+$LabelInstrucciones.BackColor = "#2C3E50"  # Fondo azul oscuro
+$LabelInstrucciones.ForeColor = "White"  # Texto blanco
+
+# Agregar los controles al formulario
+$Form.Controls.Add($LabelDirectorio)
+$Form.Controls.Add($TextBoxDirectorio)
+$Form.Controls.Add($ButtonCargar)
+$Form.Controls.Add($ListBoxArchivos)
+$Form.Controls.Add($ButtonEliminar)
+$Form.Controls.Add($LabelInstrucciones)
+# Mostrar el formulario
+$Form.ShowDialog() | Out-Null
